@@ -10,114 +10,68 @@
   --dark-color: #000;
 }
 
+html {
+  height: 100%;
+  background-color: var(--dark-color);
+}
+
 body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 100vh;
-  background-color: var(--dark-color);
+  height: 100vh;
+  height: 100dvh;
+  /* Cielo nocturno; las estrellas y luciérnagas se dibujan encima en el canvas (fondo.js) */
+  background: radial-gradient(
+    ellipse 130% 75% at 50% 0%,
+    #141c42 0%,
+    #080c22 45%,
+    var(--dark-color) 88%
+  );
   overflow: hidden;
   perspective: 1000px;
+  -webkit-tap-highlight-color: transparent;
 }
 
-#lyrics {
-  font-size: 28px;
-  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
-  color: white;
-  position: absolute;
-  margin-bottom: 20%;
-  z-index: 1;
-  font-weight: bold;
-  letter-spacing: 4px;
-}
-@media only screen and (max-width: 600px) {
-  /* Estilos específicos para dispositivos con un ancho máximo de 600px */
-  #lyrics {
-      font-size: 14px; /* Reduce el tamaño del texto para dispositivos más pequeños */
-      margin-bottom: 530px;
-      letter-spacing: 3px;
-  }
-
-}
-.titulo {
-  margin-bottom: 180px;
-  font-family: "Arial Narrow", Arial, sans-serif;
-  color: yellow;
-  position: absolute;
-  font-weight: bold;
-  letter-spacing: 10px;
-  opacity: 0;
-  animation: fadeIn 3s ease-in-out forwards;
-  text-align: center;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.night {
-  z-index: -1;
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
+#cielo {
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100%;
-  filter: blur(0.1vmin);
-  background-image: radial-gradient(
-      ellipse at top,
-      transparent 0%,
-      var(--dark-color)
-    ),
-    radial-gradient(
-      ellipse at bottom,
-      var(--dark-color),
-      rgba(145, 233, 255, 0.2)
-    ),
-    repeating-linear-gradient(
-      220deg,
-      rgb(0, 0, 0) 0px,
-      rgb(0, 0, 0) 19px,
-      transparent 19px,
-      transparent 22px
-    ),
-    repeating-linear-gradient(
-      189deg,
-      rgb(0, 0, 0) 0px,
-      rgb(0, 0, 0) 19px,
-      transparent 19px,
-      transparent 22px
-    ),
-    repeating-linear-gradient(
-      148deg,
-      rgb(0, 0, 0) 0px,
-      rgb(0, 0, 0) 19px,
-      transparent 19px,
-      transparent 22px
-    ),
-    linear-gradient(90deg, rgb(0, 255, 250), rgb(240, 240, 240));
+  touch-action: manipulation;
 }
 
+/* Las flores se escalan según la forma de la pantalla para que siempre
+   dejen cielo libre arriba (para el mensaje y el corazón de luciérnagas) */
 .flowers {
+  --escala-flores: 0.68;
   position: relative;
-  transform: scale(0.9);
-  /*margin-bottom: 100px;
-  */
+  transform: scale(var(--escala-flores));
 }
 
-@media only screen and (max-width: 600px) {
-  /* Estilos específicos para dispositivos con un ancho máximo de 600px */
-.flowers {
-      font-size: 14px;
-      margin-bottom: 35%;
-      letter-spacing: 3px;
-      transform: scale(1.0);
+@media (max-aspect-ratio: 1/1) {
+  .flowers {
+    --escala-flores: 0.7;
+  }
 }
 
+@media (max-aspect-ratio: 3/4) {
+  .flowers {
+    --escala-flores: 0.8;
+    margin-bottom: 4vh;
+  }
+}
+
+@media (max-aspect-ratio: 2/3) {
+  .flowers {
+    --escala-flores: 0.92;
+  }
+}
+
+@media (max-aspect-ratio: 9/16) {
+  .flowers {
+    --escala-flores: 1.05;
+  }
 }
 
 .flower {
@@ -1024,7 +978,7 @@ body {
 .flower__g-fr {
   position: absolute;
   bottom: -4vmin;
-  left: vmin;
+  left: 0;
   transform-origin: bottom left;
   z-index: 10;
   -webkit-animation: flower__g-fr-ans 2s linear infinite;
@@ -1603,57 +1557,8 @@ body {
     transform: scale(0);
   }
 }
-.container * {
+/* Las flores esperan quietas hasta que se toca el botón de la intro (main.js) */
+.esperando .flowers * {
   -webkit-animation-play-state: paused !important;
   animation-play-state: paused !important;
-} /*# sourceMappingURL=main.css.map */
-
-
-/* Reset de estilos básicos */
-body, h1, p {
-  margin: 0;
-  padding: 0;
 }
-
-/* Estilos generales */
-body {
-  font-family: 'Arial', sans-serif;
-  background-color: #f7f7f7;
-  color: #333;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-h1 {
-  font-size: 2em;
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-
-/* Media Queries para tamaños de pantalla diferentes */
-@media screen and (max-width: 600px) {
-  /* Estilos para pantallas pequeñas */
-  h1 {
-      font-size: 1.5em;
-  }
-}
-
-@media screen and (min-width: 601px) and (max-width: 1024px) {
-  /* Estilos para pantallas medianas */
-  h1 {
-      font-size: 1.8em;
-  }
-}
-
-@media screen and (min-width: 1025px) {
-  /* Estilos para pantallas grandes */
-  h1 {
-      font-size: 2em;
-  }
-}
-
-/* Agregar más estilos según sea necesario */

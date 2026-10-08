@@ -1,97 +1,302 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;1,900&display=swap');
-*{
-    font-family: 'Poppins',cursive;
-}
-body{
-    color: azure;
-    width: 100%;
-    height: 82vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: black;
-    /* padding-top: -30; */
+:root {
+  --dorado: #ffd84a;
+  --dorado-suave: #ffeaa0;
+  --texto: #fff8e6;
+  --cursiva: "Dancing Script", cursive;
+  --sans: "Poppins", system-ui, sans-serif;
+  --arriba: max(3.5vh, env(safe-area-inset-top));
 }
 
-.botones{
-    padding: 9px;
-    border-radius: 80px;
-    background-color: transparent;
-    border: none;
+/* ---------- Intro ---------- */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.6rem, 2.5vh, 1.2rem);
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--texto);
+  font-family: var(--sans);
+  transition: opacity 1.2s ease, visibility 1.2s;
 }
 
-.botones a{
-    background-color: #0a2be9;
-    padding: 9px;
-    border-radius: 80px;
-    -webkit-border-radius: 80px;
-    -moz-border-radius: 80px;
-    -ms-border-radius: 80px;
-    -o-border-radius: 80px;
-
+.intro.oculto {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-.botones a:focus{
-    background-color: rgb(50, 194, 194);
+.greetings {
+  font-size: clamp(2.6rem, min(13vw, 15vh), 7rem);
+  font-weight: 800;
+  line-height: 1.05;
 }
 
-.greetings{
-    font-size: 7rem;
-    font-weight: 900;
-}
-.greetings > span{
-    animation: glow 2.5s ease-in-out infinite;
-}
-@keyframes glow{
-    0%, 100%{
-        color: #fff;
-        text-shadow: 0 0 12px #39c6d6, 0 0 50px #39c6d6, 0 0 100px #39c6d6;
-    }
-    10%, 90%{
-        color: #111;
-        text-shadow: none;
-    }
-}
-.greetings > span:nth-child(2){
-    animation-delay: .2s ;
-}
-.greetings > span:nth-child(3){
-    animation-delay: .4s ;
-}
-.greetings > span:nth-child(4){
-    animation-delay: .6s;
-}
-.greetings > span:nth-child(5){
-    animation-delay: .8s;
-}
-.greetings > span:nth-child(6){
-    animation-delay: 1s;
+/* Las palabras no se parten al saltar de línea (nombres largos) */
+.greetings .palabra {
+  display: inline-block;
+  white-space: nowrap;
 }
 
-.description{
-    font-size: 1.5rem;
-    margin-bottom: 20px;
+.greetings .palabra > span {
+  animation: glow 2.5s ease-in-out infinite;
 }
 
-.button a{
-    text-decoration: none;
-    font-size: 1rem;
-    color: #111;
+@keyframes glow {
+  0%,
+  100% {
+    color: #fff;
+    text-shadow: 0 0 12px var(--dorado), 0 0 50px var(--dorado),
+      0 0 100px #ffb300;
+  }
+  10%,
+  90% {
+    color: var(--dorado-suave);
+    text-shadow: 0 0 8px rgba(255, 200, 60, 0.35);
+  }
 }
 
-@media screen and (max-width:574px){
-    .greetings{
-        display: block;
-        font-size: 4rem;
-        font-weight: 800;
-        text-align: center;
-    }
-    .description{
-        font-size: 2rem;
-    }
-    
-    .button a{
-        font-size: 1rem;
-    }
+.description {
+  font-size: clamp(1rem, min(4.2vw, 4.5vh), 1.6rem);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+.botones {
+  margin-top: 0.6rem;
+  padding: 0.9em 2.2em;
+  border: 0;
+  border-radius: 999px;
+  font: 500 clamp(1rem, 3.8vw, 1.15rem) var(--sans);
+  letter-spacing: 0.06em;
+  color: #2b1d00;
+  background: linear-gradient(135deg, #fff1a6, var(--dorado) 45%, #ffb300);
+  box-shadow: 0 0 0 0 rgba(255, 216, 74, 0.6), 0 10px 30px rgba(255, 179, 0, 0.35);
+  cursor: pointer;
+  animation: latido-boton 2.2s ease-out infinite;
+  transition: transform 0.2s ease;
+}
+
+.botones:hover,
+.botones:focus-visible {
+  transform: scale(1.06);
+}
+
+.botones:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+
+@keyframes latido-boton {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 216, 74, 0.55), 0 10px 30px rgba(255, 179, 0, 0.35);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 22px rgba(255, 216, 74, 0), 0 10px 30px rgba(255, 179, 0, 0.35);
+  }
+}
+
+.consejo {
+  font-size: 0.85rem;
+  font-weight: 300;
+  opacity: 0.6;
+}
+
+/* En vertical: el girasol arriba (fondo.js) y el saludo abajo */
+@media (max-aspect-ratio: 3/4) {
+  .intro {
+    justify-content: flex-end;
+    padding-bottom: max(9vh, calc(env(safe-area-inset-bottom) + 24px));
+  }
+}
+
+/* ---------- Escena ---------- */
+.titulo {
+  position: fixed;
+  top: var(--arriba);
+  left: 50%;
+  z-index: 20;
+  width: min(100vw - 120px, 760px);
+  transform: translateX(-50%);
+  font: 700 clamp(1.15rem, 1.6vmin + 0.9rem, 2.3rem) / 1.35 var(--cursiva);
+  color: var(--dorado);
+  text-align: center;
+  white-space: pre-line;
+  text-shadow: 0 0 18px rgba(255, 200, 40, 0.45), 0 2px 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+
+.titulo.escribiendo::after {
+  content: "|";
+  margin-left: 2px;
+  font-family: var(--sans);
+  font-weight: 300;
+  animation: parpadeo 0.8s steps(1) infinite;
+}
+
+@keyframes parpadeo {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* En pantallas angostas el mensaje baja para no chocar con el botón de música */
+@media (max-width: 700px) {
+  .titulo {
+    top: calc(var(--arriba) + 44px);
+    width: 92vw;
+  }
+}
+
+#lyrics {
+  position: fixed;
+  left: 50%;
+  bottom: max(2.5vh, env(safe-area-inset-bottom));
+  z-index: 20;
+  width: min(92vw, 720px);
+  transform: translate(-50%, 8px);
+  font: 500 clamp(0.95rem, 1.2vw + 0.6rem, 1.6rem) var(--sans);
+  letter-spacing: 0.12em;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(35, 240, 255, 0.55), 0 2px 8px #000, 0 0 2px #000;
+  opacity: 0;
+  filter: blur(4px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease;
+}
+
+#lyrics.visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate(-50%, 0);
+}
+
+.corazon-texto {
+  position: fixed;
+  z-index: 20;
+  max-width: 60vw;
+  transform: translate(-50%, -50%) scale(0.85);
+  font: 700 clamp(1.4rem, 3vw + 0.6rem, 2.8rem) / 1.15 var(--cursiva);
+  color: #fff4c4;
+  text-align: center;
+  text-shadow: 0 0 14px rgba(255, 210, 60, 0.9), 0 0 40px rgba(255, 170, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.4s ease, transform 1.4s ease;
+}
+
+.corazon-texto.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Mientras las luciérnagas forman el corazón, el mensaje le deja espacio */
+.modo-corazon .titulo {
+  opacity: 0;
+}
+
+.pista {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(2.5vh, env(safe-area-inset-bottom)) + 0.4em);
+  z-index: 20;
+  transform: translateX(-50%);
+  font: 300 0.95rem var(--sans);
+  letter-spacing: 0.08em;
+  color: var(--dorado-suave);
+  text-shadow: 0 0 10px rgba(255, 200, 60, 0.6);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+
+.pista.visible {
+  opacity: 0.85;
+}
+
+.musica,
+.repetir {
+  position: fixed;
+  z-index: 40;
+  border: 1px solid rgba(255, 234, 160, 0.35);
+  color: var(--dorado-suave);
+  background: rgba(10, 14, 35, 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: opacity 0.8s ease, transform 0.2s ease;
+}
+
+.musica {
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.musica svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.musica .tachado {
+  display: none;
+}
+
+.musica[aria-pressed="true"] .tachado {
+  display: inline;
+}
+
+.repetir {
+  left: 50%;
+  bottom: max(2.5vh, env(safe-area-inset-bottom));
+  padding: 0.6em 1.4em;
+  border-radius: 999px;
+  font: 500 0.95rem var(--sans);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+body:not(.esperando) .musica,
+.repetir.visible {
+  opacity: 0.8;
+  pointer-events: auto;
+}
+
+.musica:hover,
+.repetir:hover {
+  opacity: 1;
+}
+
+.musica:focus-visible,
+.repetir:focus-visible {
+  outline: 2px solid var(--dorado);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .greetings .palabra > span,
+  .botones {
+    animation: none;
+  }
 }

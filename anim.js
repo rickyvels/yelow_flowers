@@ -2,13 +2,13 @@
 var audio = document.querySelector("audio");
 var lyrics = document.querySelector("#lyrics");
 
-// Array de objetos que contiene cada línea y su tiempo de aparición en segundos
+// Array de objetos que contiene cada línea y su tiempo de aparición en segundos (en orden)
 var lyricsData = [
   { text: "At the time", time: 15 },
   { text: "The whisper of birds", time: 18 },
   { text: "Lonely before the sun cried", time: 27 },
   { text: "Fell from the sky", time: 32 },
-  { text: "Like water drops", time: 33 },
+  { text: "Like water drops", time: 37 },
   { text: "Where I'm now? I don't know why", time: 41 },
   { text: "Nice butterflies in my hands", time: 47 },
   { text: "Too much light for twilight", time: 54 },
@@ -30,43 +30,36 @@ var lyricsData = [
   { text: "Nice butterflies in my hands", time: 176 },
   { text: "Too much light for twilight", time: 183 },
   { text: "In the mood for the flowers", time: 188 },
-  { text: "Love.", time: 140 },
+  { text: "Love.", time: 193 },
 ];
 
-// Animar las letras
+var lineaActual = null;
+var cambioPendiente = null;
+
+// Cada línea se muestra desde su tiempo hasta la siguiente (máximo 6 segundos)
+function lineaEn(time) {
+  for (var i = 0; i < lyricsData.length; i++) {
+    var line = lyricsData[i];
+    var siguiente = lyricsData[i + 1];
+    var fin = Math.min(line.time + 6, siguiente ? siguiente.time : Infinity);
+    if (time >= line.time && time < fin) return line;
+  }
+  return null;
+}
+
+// Animar las letras: se desvanece la anterior y aparece la nueva
 function updateLyrics() {
-  var time = Math.floor(audio.currentTime);
-  var currentLine = lyricsData.find(
-    (line) => time >= line.time && time < line.time + 6
-  );
-
+  var currentLine = audio.paused && audio.currentTime === 0 ? null : lineaEn(audio.currentTime);
+  if (currentLine === lineaActual) return;
+  lineaActual = currentLine;
+  lyrics.classList.remove("visible");
+  clearTimeout(cambioPendiente);
   if (currentLine) {
-    // Calcula la opacidad basada en el tiempo en la línea actual
-    var fadeInDuration = 0.1; // Duración del efecto de aparición en segundos
-    var opacity = Math.min(1, (time - currentLine.time) / fadeInDuration);
-
-    // Aplica el efecto de aparición
-    lyrics.style.opacity = opacity;
-    lyrics.innerHTML = currentLine.text;
-  } else {
-    // Restablece la opacidad y el contenido si no hay una línea actual
-    lyrics.style.opacity = 0;
-    lyrics.innerHTML = "";
+    cambioPendiente = setTimeout(function () {
+      lyrics.textContent = currentLine.text;
+      lyrics.classList.add("visible");
+    }, 350);
   }
 }
 
-setInterval(updateLyrics, 1000);
-
-//funcion titulo
-// Función para ocultar el título después de 216 segundos
-function ocultarTitulo() {
-  var titulo = document.querySelector(".titulo");
-  titulo.style.animation =
-    "fadeOut 3s ease-in-out forwards"; /* Duración y función de temporización de la desaparición */
-  setTimeout(function () {
-    titulo.style.display = "none";
-  }, 3000); // Espera 3 segundos antes de ocultar completamente
-}
-
-// Llama a la función después de 216 segundos (216,000 milisegundos)
-setTimeout(ocultarTitulo, 216000);
+setInterval(updateLyrics, 200);
