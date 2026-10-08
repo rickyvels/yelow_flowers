@@ -5,31 +5,31 @@
 
 ## ✨ Qué tiene esta versión
 
-- **Todo en una sola página** (`index.html`): al tocar el botón empiezan la música y las flores a la vez, también en iPhone y Android (los navegadores bloquean la música si no se toca algo antes).
-- **Fondo algorítmico** (`fondo.js`, canvas):
-  - 🌻 Un girasol de **filotaxis** en la intro: cada semilla gira el ángulo dorado (≈137.5°) como en los girasoles reales, con 21 + 34 pétalos (números de Fibonacci). Al tocar el botón, sus semillas se convierten en luciérnagas.
-  - 🌌 Vía láctea con distribución normal (Box–Muller), estrellas que titilan y estrellas fugaces.
-  - ✨ Luciérnagas que vuelan siguiendo un campo de flujo de **ruido de Perlin**.
-  - 💛 Varias veces durante la canción las luciérnagas forman un **corazón paramétrico** (`x = 16·sin³t`, `y = 13·cos t − 5·cos 2t − 2·cos 3t − cos 4t`) que late, con un mensaje dentro.
-  - 🌼 Al tocar el cielo nace una flor de luz donde pusiste el dedo, y las luciérnagas se acercan.
-- **Responsive**: se adapta a celulares (vertical y horizontal), tablets y computadoras.
-- Botón para silenciar la música y botón para verlo otra vez al final.
+Una experiencia en una sola página (`index.html`): al tocar el botón empiezan la música y las flores, y al deslizar hacia abajo aparecen 7 capítulos interactivos. El cielo pasa de noche a amanecer mientras bajas.
+
+**Inicio**
+- 🌻 Intro con un girasol de **filotaxis**: cada semilla gira el ángulo dorado (≈137.5°), con 21 + 34 pétalos (números de Fibonacci). Al tocar el botón, sus semillas se convierten en luciérnagas.
+- 🌼 Pradera de flores amarillas que se mecen con **ruido de Perlin** y se apartan al pasar el dedo.
+- 💛 Durante el coro, las luciérnagas forman un **corazón paramétrico** que late, con su nombre dentro.
+- 🌌 Vía láctea (distribución normal, Box–Muller), estrellas fugaces, pétalos y flores de luz al tocar el cielo.
+
+**Capítulos** (para una founder tech 🚀)
+1. **La proporción perfecta**: ella mueve el ángulo hasta formar el girasol perfecto, o lo encuentra un **descenso de gradiente con momentum**.
+2. **Modo debug**: un juego en el que los bugs 🐞 caminan con ruido de Perlin y, al tocarlos, se convierten en flores. Tiene niveles y récords.
+3. **Terminal**: una terminal de verdad con comandos (`help`, `whoami`, `deploy`, `yc`, `sudo abrazo`, `corazon`…).
+4. **Dashboard**: KPIs con humor (retención 100%, churn 0%) y una curva de crecimiento "up and to the right" interactiva.
+5. **Jardín generativo**: cada toque planta una flor única, con viento, mariposas y avisos al llegar a números de Fibonacci.
+6. **Demo Day**: el botón 🚀 lanza fuegos artificiales con forma de **rosa polar** `r = cos(kθ)`.
+7. **Para ti**: su nombre hecho de partículas de luz dentro de un corazón de luciérnagas, más un mensaje final.
+
+Funciona en celular (vertical y horizontal), tablet y computadora.
 
 ## 💌 Personalízalo
 
-Edita `config.js`:
+Edita `config.js`: `nombre`, `startup`, `dedicatoria`, `mensaje`, `frasesCorazon`, `carta` (lo que muestra `cat carta` en la terminal) y `mensajeFinal`.
 
-```js
-var CONFIG = {
-  nombre: "María",                       // aparece en el saludo y en el corazón
-  dedicatoria: "Este detalle es para ti :)",
-  mensaje: "Estas flores amarillas son...", // se escribe letra por letra
-  frasesCorazon: ["Para ti, {nombre}", "Eres mi flor favorita", "Gracias por existir", "Te quiero 💛"],
-};
-```
-
-También puedes dejar `nombre` vacío y poner su nombre en el enlace:
-`https://TU-USUARIO.github.io/yelow_flowers/?para=María`
+También puedes dejarlos vacíos y ponerlos en el enlace:
+`https://TU-USUARIO.github.io/yelow_flowers/?para=María&startup=Acme`
 
 ## 🚀 Publicarlo gratis con GitHub Pages
 

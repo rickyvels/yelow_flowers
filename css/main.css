@@ -11,26 +11,21 @@
 }
 
 html {
-  height: 100%;
   background-color: var(--dark-color);
 }
 
+/* El cielo (degradado, estrellas, luciérnagas...) lo dibuja fondo.js en el canvas fijo */
 body {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  background-color: var(--dark-color);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Antes de tocar el botón de la intro no se puede deslizar */
+body.esperando {
   height: 100vh;
   height: 100dvh;
-  /* Cielo nocturno; las estrellas y luciérnagas se dibujan encima en el canvas (fondo.js) */
-  background: radial-gradient(
-    ellipse 130% 75% at 50% 0%,
-    #141c42 0%,
-    #080c22 45%,
-    var(--dark-color) 88%
-  );
   overflow: hidden;
-  perspective: 1000px;
-  -webkit-tap-highlight-color: transparent;
 }
 
 #cielo {
@@ -38,7 +33,21 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
-  touch-action: manipulation;
+}
+
+main {
+  position: relative;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  perspective: 1000px;
 }
 
 /* Las flores se escalan según la forma de la pantalla para que siempre

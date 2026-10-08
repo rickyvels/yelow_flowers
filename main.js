@@ -1,18 +1,19 @@
-// Orquesta la sorpresa: intro → música y flores → mensaje → corazones de luciérnagas
+// Orquesta la sorpresa: intro → música y flores → mensaje → corazones de luciérnagas → capítulos
 (function () {
   const intro = document.getElementById("intro");
+  const hero = document.getElementById("inicio");
   const saludo = document.getElementById("saludo");
   const mensaje = document.getElementById("mensaje");
   const corazonTexto = document.getElementById("corazonTexto");
   const pista = document.getElementById("pista");
   const musica = document.getElementById("musica");
-  const repetir = document.getElementById("repetir");
+  const bajar = document.getElementById("bajar");
+  const progreso = document.getElementById("progreso");
+  const nombre = Secciones.nombre; // ?para=Nombre en el enlace o config.js
 
-  // ?para=Nombre en el enlace tiene prioridad sobre config.js
-  const nombre = (new URLSearchParams(location.search).get("para") || CONFIG.nombre || "")
-    .normalize("NFC")
-    .trim()
-    .slice(0, 30);
+  // Siempre empieza desde arriba, también al recargar
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  window.scrollTo(0, 0);
 
   // "Hola, Nombre!": cada letra brilla con un pequeño retraso
   saludo.textContent = "";
@@ -39,13 +40,14 @@
     return texto || "Para ti 💛";
   }
 
-  // El texto del corazón se coloca donde el fondo dibuja el corazón
+  // El texto del corazón se coloca donde el fondo dibuja el corazón (relativo al inicio)
   function ubicarCorazon() {
-    const g = Fondo.geometriaCorazon();
-    corazonTexto.style.left = g.x + "px";
-    corazonTexto.style.top = g.y + "px";
-    corazonTexto.style.maxWidth = g.ancho * 0.62 + "px";
-    corazonTexto.style.fontSize = Math.max(22, Math.min(50, g.ancho * 0.125)) + "px";
+    const a = Fondo.anclaHero();
+    const r = hero.getBoundingClientRect();
+    corazonTexto.style.left = a.x - r.left + "px";
+    corazonTexto.style.top = a.y - r.top - (1.5 * a.ancho) / 34 + "px";
+    corazonTexto.style.maxWidth = a.ancho * 0.62 + "px";
+    corazonTexto.style.fontSize = Math.max(22, Math.min(50, a.ancho * 0.125)) + "px";
   }
   window.addEventListener("resize", ubicarCorazon);
   ubicarCorazon();
@@ -71,11 +73,13 @@
 
   let corazonId = 0;
   function formarCorazon(i, segundos) {
+    // Si ya bajó a ver los capítulos, no le llevamos las luciérnagas hacia arriba
+    if (hero.getBoundingClientRect().bottom < innerHeight * 0.55) return;
     const id = ++corazonId;
     pista.classList.remove("visible");
     corazonTexto.classList.remove("visible");
     document.body.classList.add("modo-corazon");
-    Fondo.formarCorazon();
+    const idFondo = Fondo.formarCorazon();
     setTimeout(() => {
       if (id !== corazonId) return;
       corazonTexto.textContent = frase(i);
@@ -86,12 +90,12 @@
       if (id !== corazonId) return;
       corazonTexto.classList.remove("visible");
       document.body.classList.remove("modo-corazon");
-      Fondo.soltarCorazon();
+      Fondo.soltarCorazon(idFondo);
     }, segundos * 1000);
   }
 
-  function mostrarRepetir() {
-    repetir.classList.add("visible");
+  function mostrarBajar() {
+    bajar.classList.add("visible");
   }
 
   // Momentos de la sorpresa (segundos de la canción); los corazones caen en el coro
@@ -99,10 +103,10 @@
     { en: 5, hacer: escribirMensaje },
     { en: 10.5, hacer: mostrarPista }, // antes de que empiece la letra (15 s)
     { en: 20, hacer: () => formarCorazon(0, 9) },
+    { en: 30, hacer: mostrarBajar },
     { en: 57, hacer: () => formarCorazon(1, 11) },
     { en: 106, hacer: () => formarCorazon(2, 10) },
-    { en: 186, hacer: () => formarCorazon(3, 0) },
-    { en: 214, hacer: mostrarRepetir },
+    { en: 186, hacer: () => formarCorazon(3, 14) },
   ];
 
   let reloj = 0;
@@ -119,6 +123,7 @@
   document.getElementById("abrir").addEventListener("click", () => {
     if (!document.body.classList.contains("esperando")) return;
     audio.play().catch(() => {}); // si el navegador no deja reproducir, la escena sigue igual
+    window.scrollTo(0, 0);
     intro.classList.add("oculto");
     Fondo.iniciarEscena();
     document.body.classList.remove("esperando");
@@ -137,6 +142,29 @@
     musica.setAttribute("aria-label", audio.muted ? "Activar música" : "Silenciar música");
   });
 
-  audio.addEventListener("ended", mostrarRepetir);
-  repetir.addEventListener("click", () => location.reload());
+  bajar.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("dorado").scrollIntoView({ behavior: "smooth" });
+  });
+
+  // Cuando el inicio casi no se ve, la letra de la canción se esconde para no tapar los capítulos
+  new IntersectionObserver(([e]) => document.body.classList.toggle("en-capitulos", !e.isIntersecting), {
+    threshold: 0.3,
+  }).observe(hero);
+
+  // Barra de progreso arriba, como una barra de carga
+  let pendiente = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (pendiente) return;
+      pendiente = true;
+      requestAnimationFrame(() => {
+        pendiente = false;
+        const max = document.documentElement.scrollHeight - innerHeight;
+        progreso.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+      });
+    },
+    { passive: true }
+  );
 })();

@@ -1,16 +1,19 @@
-// Fondo algorítmico del cielo (canvas):
+// Fondo algorítmico del cielo (canvas fijo detrás de toda la página):
 //  - Girasol de la intro con filotaxis: cada semilla gira el ángulo dorado (≈137.5°),
 //    igual que en los girasoles reales, y lleva 21 + 34 pétalos (números de Fibonacci).
+//  - Cielo que pasa de noche a amanecer mientras se desliza la página.
 //  - Vía láctea: polvo de estrellas con distribución normal (Box–Muller) alrededor de una curva.
+//  - Pradera de flores amarillas que se mecen con ruido de Perlin y se apartan al pasar el dedo.
 //  - Luciérnagas que flotan siguiendo un campo de flujo de ruido de Perlin 3D.
 //  - Corazón paramétrico x = 16·sin³t, y = 13·cos t − 5·cos 2t − 2·cos 3t − cos 4t,
 //    repartido por longitud de arco; las luciérnagas llegan a él con un resorte amortiguado.
+//  - Fuegos artificiales con forma de rosa polar r = cos(kθ).
 //  - Estrellas fugaces, pétalos que caen y flores de filotaxis donde se toca la pantalla.
 var Fondo = (function () {
   const canvas = document.getElementById("cielo");
   const ctx = canvas.getContext("2d");
-  const TAU = Math.PI * 2;
-  const ANGULO_DORADO = Math.PI * (3 - Math.sqrt(5));
+  const hero = document.getElementById("inicio");
+  const { perlin: ruido, gauss, TAU, ANGULO_DORADO } = Ruido;
   const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let W = 0;
@@ -19,85 +22,31 @@ var Fondo = (function () {
   let esc = 1; // escala según el tamaño de pantalla
   let reloj = 0;
   let enEscena = false;
+  let inicioEscena = 0;
   let capaEstrellas = null;
   let titilantes = [];
   let luciernagas = [];
   let fugaces = [];
   let petalos = [];
   let floraciones = [];
+  let pradera = [];
+  let cohetes = [];
+  let chispas = [];
   let proximaFugaz = 2;
-  const puntero = { x: 0, y: 0, hasta: 0 };
+  let lluviaHasta = 0;
+  let idCorazon = 0;
+  const puntero = { x: 0, y: 0, vx: 0, hasta: 0, t: 0 };
 
   const girasol = { semillas: reducido ? 260 : 480, crecimiento: 0, giro: 0, explosion: -1, colores: [] };
-  const corazon = { activo: false, fuerza: 0, cx: 0, cy: 0, s: 1, orden: [] };
-
-  // ---------- Ruido de Perlin 3D ("improved noise", Ken Perlin 2002) ----------
-  const perm = new Uint8Array(512);
-  (function () {
-    const p = [];
-    for (let i = 0; i < 256; i++) p[i] = i;
-    for (let i = 255; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [p[i], p[j]] = [p[j], p[i]];
-    }
-    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
-  })();
-
-  function suavizar(t) {
-    return t * t * t * (t * (t * 6 - 15) + 10);
-  }
-
-  function mezclar(a, b, t) {
-    return a + t * (b - a);
-  }
-
-  function gradiente(hash, x, y, z) {
-    const h = hash & 15;
-    const u = h < 8 ? x : y;
-    const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
-    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
-  }
-
-  function ruido(x, y, z) {
-    const X = Math.floor(x) & 255;
-    const Y = Math.floor(y) & 255;
-    const Z = Math.floor(z) & 255;
-    x -= Math.floor(x);
-    y -= Math.floor(y);
-    z -= Math.floor(z);
-    const u = suavizar(x);
-    const v = suavizar(y);
-    const w = suavizar(z);
-    const A = perm[X] + Y;
-    const AA = perm[A] + Z;
-    const AB = perm[A + 1] + Z;
-    const B = perm[X + 1] + Y;
-    const BA = perm[B] + Z;
-    const BB = perm[B + 1] + Z;
-    return mezclar(
-      mezclar(
-        mezclar(gradiente(perm[AA], x, y, z), gradiente(perm[BA], x - 1, y, z), u),
-        mezclar(gradiente(perm[AB], x, y - 1, z), gradiente(perm[BB], x - 1, y - 1, z), u),
-        v
-      ),
-      mezclar(
-        mezclar(gradiente(perm[AA + 1], x, y, z - 1), gradiente(perm[BA + 1], x - 1, y, z - 1), u),
-        mezclar(gradiente(perm[AB + 1], x, y - 1, z - 1), gradiente(perm[BB + 1], x - 1, y - 1, z - 1), u),
-        v
-      ),
-      w
-    );
-  }
-
-  // Número aleatorio con distribución normal (transformada de Box–Muller)
-  function gauss() {
-    let u = 0;
-    while (u === 0) u = Math.random();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * Math.random());
-  }
+  const corazon = { activo: false, fuerza: 0, cx: 0, cy: 0, s: 1, orden: [], ancla: null };
 
   function limitar(v, min, max) {
     return Math.max(min, Math.min(max, v));
+  }
+
+  function rebote(t) {
+    const c = 1.70158;
+    return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
   }
 
   // ---------- Destellos pre-dibujados (mucho más rápido que un gradiente por partícula) ----------
@@ -118,6 +67,46 @@ var Fondo = (function () {
   const brilloDorado = crearBrillo("rgba(255, 222, 110, 0.95)", "rgba(255, 180, 40, 0.16)");
   const brilloAmbar = crearBrillo("rgba(255, 170, 50, 0.9)", "rgba(230, 110, 20, 0.14)");
   const brilloBlanco = crearBrillo("rgba(215, 230, 255, 0.85)", "rgba(140, 170, 255, 0.1)");
+  const brilloNaranja = crearBrillo("rgba(255, 120, 30, 0.95)", "rgba(255, 90, 0, 0.16)");
+
+  // Cabeza de flor pre-dibujada: pétalos alrededor y centro de semillas en filotaxis
+  function crearCabeza({ petalos = 13, hue = 48, luz = 56, ancho = 7, centro = "#6b3f10", rc = 12 } = {}) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 96;
+    const g = c.getContext("2d");
+    g.translate(48, 48);
+    const giro = Math.random() * TAU;
+    for (let i = 0; i < petalos; i++) {
+      g.save();
+      g.rotate((i / petalos) * TAU + giro);
+      g.fillStyle = `hsl(${hue + (i % 2) * 4}, 100%, ${luz + (i % 2) * 6}%)`;
+      g.beginPath();
+      g.ellipse(0, -24, ancho, 20, 0, 0, TAU);
+      g.fill();
+      g.restore();
+    }
+    g.fillStyle = centro;
+    g.beginPath();
+    g.arc(0, 0, rc, 0, TAU);
+    g.fill();
+    for (let k = 0; k < 70; k++) {
+      const r = rc * 0.92 * Math.sqrt(k / 70);
+      const a = k * ANGULO_DORADO;
+      g.fillStyle = `rgba(255, 196, 80, ${0.2 + (0.55 * k) / 70})`;
+      g.beginPath();
+      g.arc(Math.cos(a) * r, Math.sin(a) * r, 1.3, 0, TAU);
+      g.fill();
+    }
+    return c;
+  }
+
+  const cabezas = [
+    crearCabeza({ petalos: 13, hue: 48, luz: 55, ancho: 7 }),
+    crearCabeza({ petalos: 8, hue: 45, luz: 58, ancho: 10, centro: "#9a4f16", rc: 11 }),
+    crearCabeza({ petalos: 21, hue: 44, luz: 52, ancho: 5, centro: "#4f2f0d", rc: 15 }),
+    crearCabeza({ petalos: 5, hue: 51, luz: 62, ancho: 13, centro: "#e08a1e", rc: 9 }),
+    crearCabeza({ petalos: 34, hue: 47, luz: 56, ancho: 3.6, centro: "#432709", rc: 17 }),
+  ];
 
   // Pétalo: dos curvas cuadráticas desde la base (0,0) hasta la punta (0,largo)
   function trazarPetalo(largo, ancho) {
@@ -128,8 +117,45 @@ var Fondo = (function () {
     ctx.fill();
   }
 
-  // ---------- Cielo estático: nebulosa + vía láctea + estrellas ----------
-  function pintarCielo() {
+  // ---------- Cielo: degradado según el scroll + nebulosa, vía láctea y estrellas ----------
+  const PALETAS = [
+    [[20, 28, 66], [8, 12, 34], [0, 0, 0]], // noche
+    [[28, 22, 72], [34, 16, 58], [10, 5, 22]], // violeta
+    [[44, 48, 116], [112, 54, 100], [205, 118, 70]], // amanecer
+  ];
+
+  function colorCielo(p) {
+    const tramo = Math.min(1.999, p * 2);
+    const i = Math.floor(tramo);
+    const f = (tramo - i) * (tramo - i) * (3 - 2 * (tramo - i));
+    return PALETAS[i].map((c, k) => c.map((v, j) => Math.round(v + (PALETAS[i + 1][k][j] - v) * f)));
+  }
+
+  function dibujarCielo(p) {
+    const [arriba, medio, abajo] = colorCielo(p);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, `rgb(${arriba})`);
+    g.addColorStop(0.5, `rgb(${medio})`);
+    g.addColorStop(1, `rgb(${abajo})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    if (p > 0.55) {
+      // El sol empieza a asomar al final del recorrido
+      const q = (p - 0.55) / 0.45;
+      const r = Math.max(W, H) * 0.65;
+      const sol = ctx.createRadialGradient(W / 2, H * 1.08, 0, W / 2, H * 1.08, r);
+      sol.addColorStop(0, `rgba(255, 214, 120, ${0.5 * q})`);
+      sol.addColorStop(0.35, `rgba(255, 150, 80, ${0.2 * q})`);
+      sol.addColorStop(1, "rgba(255, 150, 80, 0)");
+      ctx.fillStyle = sol;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.globalAlpha = 1 - 0.7 * p;
+    ctx.drawImage(capaEstrellas, 0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  function pintarEstrellas() {
     capaEstrellas = document.createElement("canvas");
     capaEstrellas.width = canvas.width;
     capaEstrellas.height = canvas.height;
@@ -189,17 +215,18 @@ var Fondo = (function () {
     }
   }
 
-  function dibujarTitilantes() {
+  function dibujarTitilantes(p) {
     ctx.strokeStyle = "#e9f0ff";
     ctx.lineWidth = 0.6;
+    const brillo = 1 - 0.6 * p;
     for (const e of titilantes) {
       const b = Math.pow(0.5 + 0.5 * Math.sin(reloj * e.f + e.fase), 3);
       const s = e.r * 7;
-      ctx.globalAlpha = 0.25 + 0.75 * b;
+      ctx.globalAlpha = (0.25 + 0.75 * b) * brillo;
       ctx.drawImage(brilloBlanco, e.x - s / 2, e.y - s / 2, s, s);
       if (e.cruz && b > 0.55) {
         const l = e.r * 9 * b;
-        ctx.globalAlpha = (b - 0.55) * 1.6;
+        ctx.globalAlpha = (b - 0.55) * 1.6 * brillo;
         ctx.beginPath();
         ctx.moveTo(e.x - l, e.y);
         ctx.lineTo(e.x + l, e.y);
@@ -283,6 +310,105 @@ var Fondo = (function () {
     ctx.globalAlpha = 1;
   }
 
+  // ---------- Suelo y pradera de flores amarillas del inicio ----------
+  function crearPradera() {
+    const n = Math.round(limitar(W / 18, 20, 56) * (reducido ? 0.6 : 1));
+    pradera = [];
+    for (let i = 0; i < n; i++) {
+      const x = ((i + 0.15 + Math.random() * 0.7) / n) * W; // repartidas pero no en fila
+      const lejos = Math.random(); // 1 = al fondo, más chica y más arriba
+      pradera.push({
+        x,
+        base: 0.012 + lejos * 0.07,
+        alto: (60 + Math.random() * 110) * esc * (1 - lejos * 0.35),
+        tam: (9 + Math.random() * 8) * esc * (1 - lejos * 0.3),
+        lejos,
+        cabeza: cabezas[Math.floor(Math.random() * cabezas.length)],
+        hoja: Math.random() < 0.5 ? -1 : 1,
+        retraso: 1.2 + Math.abs(x / W - 0.5) * 4 + Math.random() * 0.8,
+        crecer: enEscena ? 1 : 0,
+        a: 0, // inclinación extra (resorte) cuando el dedo la empuja
+        w: 0,
+        fase: Math.random() * 100,
+      });
+    }
+    pradera.sort((a, b) => b.lejos - a.lejos); // primero las del fondo
+  }
+
+  function dibujarSuelo(piso) {
+    if (piso < -H * 0.35 || piso - H * 0.45 > H) return;
+    const g = ctx.createLinearGradient(0, piso - H * 0.45, 0, piso + H * 0.35);
+    g.addColorStop(0, "rgba(0, 0, 0, 0)");
+    g.addColorStop(0.55, "rgba(0, 0, 0, 1)");
+    g.addColorStop(0.62, "rgba(0, 0, 0, 1)");
+    g.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, piso - H * 0.45, W, H * 0.8);
+  }
+
+  function dibujarPradera(dt, piso) {
+    if (!enEscena || piso < -20 || piso - H * 0.5 > H) return;
+    const tEscena = reloj - inicioEscena;
+    const conPuntero = reloj < puntero.hasta;
+    const radio = 90 * esc;
+    ctx.lineCap = "round";
+    for (const f of pradera) {
+      if (tEscena > f.retraso) f.crecer = Math.min(1, f.crecer + dt / 1.6);
+      if (f.crecer <= 0) continue;
+      const bx = f.x;
+      const by = piso - f.base * H;
+      const alto = f.alto * Math.min(1, f.crecer * 1.4);
+
+      if (conPuntero) {
+        const dx = puntero.x - bx;
+        const dy = puntero.y - (by - alto * 0.7);
+        const d2 = dx * dx + dy * dy;
+        if (d2 < radio * radio) f.w += limitar(puntero.vx, -2500, 2500) * 0.004 * dt * 60 * (1 - Math.sqrt(d2) / radio);
+      }
+      f.w += (-26 * f.a - 3.2 * f.w) * dt; // resorte amortiguado: vuelve a su lugar
+      f.a += f.w * dt;
+      f.a = limitar(f.a, -1.1, 1.1);
+
+      const ang = ruido(f.x * 0.004, reloj * 0.35, 3.7) * 0.4 + f.a;
+      const hx = bx + Math.sin(ang) * alto;
+      const hy = by - Math.cos(ang) * alto;
+      const qx = bx + Math.sin(ang * 0.35) * alto * 0.5;
+      const qy = by - alto * 0.55;
+      const tono = 1 - f.lejos * 0.45;
+
+      ctx.globalAlpha = tono;
+      ctx.strokeStyle = "#1c8f6a";
+      ctx.lineWidth = Math.max(1, 2.2 * esc * (1 - f.lejos * 0.4));
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.quadraticCurveTo(qx, qy, hx, hy);
+      ctx.stroke();
+
+      // Una hoja a media altura
+      const mx = (bx + 2 * qx + hx) / 4;
+      const my = (by + 2 * qy + hy) / 4;
+      ctx.fillStyle = "#2fb36c";
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(ang + f.hoja * 1.1);
+      ctx.scale(1, Math.min(1, f.crecer * 1.5));
+      trazarPetalo(f.tam * 1.6, f.tam * 0.45);
+      ctx.restore();
+
+      // La flor se abre al final del crecimiento, con un pequeño rebote
+      const abrir = limitar((f.crecer - 0.45) / 0.55, 0, 1);
+      if (abrir > 0) {
+        const s = f.tam * 2.2 * rebote(abrir);
+        ctx.save();
+        ctx.translate(hx, hy);
+        ctx.rotate(ang + Math.sin(reloj * 0.8 + f.fase) * 0.15);
+        ctx.drawImage(f.cabeza, -s / 2, -s / 2, s, s);
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- Luciérnagas ----------
   function cantidadLuciernagas() {
     return Math.round(limitar((W * H) / 12000, 60, 120) * (reducido ? 0.5 : 1));
@@ -323,6 +449,12 @@ var Fondo = (function () {
   function dibujarLuciernagas(dt) {
     corazon.fuerza += ((corazon.activo ? 1 : 0) - corazon.fuerza) * Math.min(1, dt * (corazon.activo ? 0.9 : 2.5));
     const f = corazon.fuerza;
+    if (corazon.ancla && f > 0.001) {
+      const a = corazon.ancla();
+      corazon.cx = a.x;
+      corazon.cy = a.y;
+      corazon.s = a.ancho / 34;
+    }
     const escalaCorazon = corazon.s * latido();
     const conPuntero = reloj < puntero.hasta && f < 0.3;
     const radio = 170 * esc;
@@ -377,16 +509,30 @@ var Fondo = (function () {
   }
 
   // ---------- Corazón ----------
-  function medirCorazon() {
-    const horizontal = W > H;
-    const ancho = horizontal ? Math.min(W * 0.32, H * 0.38) : Math.min(W * 0.78, H * 0.38);
-    corazon.s = ancho / 34;
-    corazon.cx = W / 2;
-    corazon.cy = horizontal ? H * 0.25 : H * 0.28;
+  // Un "ancla" dice dónde va el corazón en cada cuadro: {x, y, ancho} en la pantalla
+  function anclaHero() {
+    const r = hero.getBoundingClientRect();
+    const horizontal = r.width > r.height;
+    const ancho = horizontal ? Math.min(r.width * 0.32, r.height * 0.38) : Math.min(r.width * 0.78, r.height * 0.38);
+    return { x: r.left + r.width / 2, y: r.top + r.height * (horizontal ? 0.25 : 0.28), ancho };
+  }
+
+  function anclaPantalla() {
+    return { x: W / 2, y: H * 0.42, ancho: Math.min(W * 0.75, H * 0.5) };
+  }
+
+  function anclaElemento(el, factor = 1) {
+    return () => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, ancho: Math.min(W * 0.94, r.width * factor) };
+    };
   }
 
   function calcularCorazon() {
-    medirCorazon();
+    const a = corazon.ancla();
+    corazon.cx = a.x;
+    corazon.cy = a.y;
+    corazon.s = a.ancho / 34;
     // Muestreamos la curva y la recorremos por longitud de arco para repartir parejo
     const muestras = [];
     let largo = 0;
@@ -437,7 +583,9 @@ var Fondo = (function () {
     ctx.stroke();
   }
 
-  function soltarCorazon() {
+  function soltarCorazon(id) {
+    if (id !== undefined && id !== idCorazon) return; // ya hay otro corazón formándose
+    if (!corazon.activo) return;
     corazon.activo = false;
     for (const l of luciernagas) {
       const dx = l.x - corazon.cx;
@@ -449,8 +597,77 @@ var Fondo = (function () {
     }
   }
 
+  // ---------- Fuegos artificiales con forma de rosa polar r = cos(kθ) ----------
+  function lanzarCohete(x, y) {
+    cohetes.push({ x0: x + (Math.random() - 0.5) * W * 0.15, y0: H + 20, x, y, t: 0, dur: 0.8 + Math.random() * 0.35 });
+  }
+
+  function explotar(x, y) {
+    const k = [2, 3, 4, 5, 6, 7][Math.floor(Math.random() * 6)];
+    const rango = k % 2 ? Math.PI : TAU; // con k impar la rosa se cierra en media vuelta
+    const n = reducido ? 50 : W < 600 ? 80 : 120;
+    const R = (85 + Math.random() * 70) * esc;
+    const giro = Math.random() * TAU;
+    const azar = Math.random();
+    const sprite = azar < 0.18 ? brilloNaranja : azar < 0.6 ? brilloDorado : azar < 0.85 ? brilloAmbar : brilloBlanco;
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * rango;
+      const r = Math.cos(k * th);
+      chispas.push({
+        cx: x,
+        cy: y,
+        tx: r * Math.cos(th + giro) * R,
+        ty: r * Math.sin(th + giro) * R,
+        t: 0,
+        vy: 0,
+        sprite,
+        tam: (6 + Math.random() * 5) * esc,
+        vida: 2 + Math.random() * 0.8,
+        fase: Math.random() * TAU,
+      });
+    }
+    for (let i = 0; i < 16; i++) {
+      // un anillo pequeño en el centro, como el corazón de la flor
+      const th = (i / 16) * TAU;
+      chispas.push({ cx: x, cy: y, tx: Math.cos(th) * R * 0.18, ty: Math.sin(th) * R * 0.18, t: 0, vy: 0, sprite: brilloBlanco, tam: 7 * esc, vida: 1.6, fase: 0 });
+    }
+    if (chispas.length > 1600) chispas.splice(0, chispas.length - 1600);
+  }
+
+  function dibujarFuegos(dt) {
+    for (const c of cohetes) {
+      c.t += dt;
+      const e = 1 - Math.pow(1 - Math.min(1, c.t / c.dur), 2);
+      const x = c.x0 + (c.x - c.x0) * e;
+      const y = c.y0 + (c.y - c.y0) * e;
+      for (let i = 0; i < 6; i++) {
+        // estela
+        const eAtras = 1 - Math.pow(1 - Math.max(0, Math.min(1, (c.t - i * 0.03) / c.dur)), 2);
+        const s = (7 - i) * esc;
+        ctx.globalAlpha = 0.8 - i * 0.12;
+        ctx.drawImage(brilloAmbar, c.x0 + (c.x - c.x0) * eAtras - s / 2, c.y0 + (c.y - c.y0) * eAtras - s / 2, s, s);
+      }
+      if (c.t >= c.dur) explotar(x, y);
+    }
+    cohetes = cohetes.filter((c) => c.t < c.dur);
+
+    for (const c of chispas) {
+      c.t += dt;
+      const e = 1 - Math.pow(1 - Math.min(1, c.t / 0.75), 3);
+      if (c.t > 0.75) {
+        c.vy += 70 * esc * dt; // después de abrirse, la flor de chispas cae despacio
+        c.cy += c.vy * dt;
+      }
+      const a = c.t < 1 ? 1 : Math.max(0, 1 - (c.t - 1) / (c.vida - 1));
+      ctx.globalAlpha = a * (0.65 + 0.35 * Math.sin(c.t * 25 + c.fase));
+      const s = c.tam * (1.4 - 0.4 * e);
+      ctx.drawImage(c.sprite, c.cx + c.tx * e - s / 2, c.cy + c.ty * e - s / 2, s, s);
+    }
+    chispas = chispas.filter((c) => c.t < c.vida);
+  }
+
   // ---------- Estrellas fugaces ----------
-  function dibujarFugaces(dt) {
+  function dibujarFugaces(dt, p) {
     proximaFugaz -= dt;
     if (proximaFugaz <= 0) {
       proximaFugaz = (reducido ? 10 : 4) + Math.random() * 8;
@@ -472,7 +689,7 @@ var Fondo = (function () {
       f.vida += dt;
       f.x += f.vx * dt;
       f.y += f.vy * dt;
-      const a = Math.sin(Math.min(1, f.vida / f.dur) * Math.PI);
+      const a = Math.sin(Math.min(1, f.vida / f.dur) * Math.PI) * (1 - 0.6 * p);
       const v = Math.hypot(f.vx, f.vy);
       const cola = f.largo * a;
       const colaX = f.x - (f.vx / v) * cola;
@@ -495,15 +712,16 @@ var Fondo = (function () {
 
   // ---------- Pétalos amarillos que caen ----------
   function cantidadPetalos() {
-    return reducido ? 5 : W > H ? 16 : 10;
+    const base = reducido ? 5 : W > H ? 16 : 10;
+    return reloj < lluviaHasta ? base * 3 : base;
   }
 
-  function nuevoPetalo() {
+  function nuevoPetalo(arriba = -30 - Math.random() * H * 0.8) {
     return {
       x: Math.random() * W,
-      y: -30 - Math.random() * H * 0.8,
+      y: arriba,
       tam: (7 + Math.random() * 7) * esc,
-      vy: (16 + Math.random() * 26) * esc,
+      vy: (16 + Math.random() * 26) * esc * (reloj < lluviaHasta ? 3.2 : 1), // la lluvia cae rápido y pasa
       amp: (14 + Math.random() * 30) * esc,
       frec: 0.4 + Math.random() * 0.6,
       fase: Math.random() * TAU,
@@ -514,18 +732,20 @@ var Fondo = (function () {
     };
   }
 
-  function ajustarPetalos() {
-    if (!enEscena) return;
-    while (petalos.length < cantidadPetalos()) petalos.push(nuevoPetalo());
-    petalos.length = cantidadPetalos();
-  }
-
   function dibujarPetalos(dt) {
+    if (!enEscena) return;
+    const objetivo = cantidadPetalos();
+    for (let i = 0; i < 3 && petalos.length < objetivo; i++) {
+      petalos.push(nuevoPetalo(petalos.length < 3 ? undefined : -20 - Math.random() * 60));
+    }
     for (const p of petalos) {
       p.y += p.vy * dt;
       p.rot += p.vrot * dt;
       p.giro += p.vgiro * dt;
-      if (p.y > H + 40) Object.assign(p, nuevoPetalo(), { y: -30 });
+      if (p.y > H + 40) {
+        if (petalos.length > objetivo) p.borrar = true;
+        else Object.assign(p, nuevoPetalo(-30));
+      }
       const voltear = Math.cos(p.giro); // simula que el pétalo gira en 3D
       ctx.save();
       ctx.translate(p.x + Math.sin(reloj * p.frec + p.fase) * p.amp, p.y);
@@ -537,6 +757,7 @@ var Fondo = (function () {
       trazarPetalo(p.tam * 2, p.tam * 0.75);
       ctx.restore();
     }
+    if (petalos.some((p) => p.borrar)) petalos = petalos.filter((p) => !p.borrar);
   }
 
   // ---------- Flores de filotaxis donde se toca ----------
@@ -549,7 +770,7 @@ var Fondo = (function () {
       c: (2.6 + Math.random() * 1.2) * esc,
       giro: Math.random() * TAU,
     });
-    if (floraciones.length > 10) floraciones.shift();
+    if (floraciones.length > 14) floraciones.shift();
     puntero.x = x;
     puntero.y = y;
     puntero.hasta = reloj + 2;
@@ -577,18 +798,18 @@ var Fondo = (function () {
   function redimensionar() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (capaEstrellas && window.innerWidth === W && window.innerHeight === H && dpr === DPR) return;
+    const anchoAntes = W;
     W = window.innerWidth;
     H = window.innerHeight;
     DPR = dpr;
     esc = limitar(Math.min(W, H) / 700, 0.6, 1.4);
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
-    pintarCielo();
+    pintarEstrellas();
     crearTitilantes();
     ajustarLuciernagas();
-    ajustarPetalos();
+    if (W !== anchoAntes) crearPradera(); // en el celular la barra de direcciones solo cambia el alto
     if (corazon.activo) calcularCorazon();
-    else medirCorazon();
   }
 
   let ultimo = performance.now();
@@ -596,35 +817,53 @@ var Fondo = (function () {
     const dt = Math.min(0.05, Math.max(0, (ahora - ultimo) / 1000));
     ultimo = ahora;
     reloj += dt;
+    puntero.vx *= Math.pow(0.02, dt); // el empujón del dedo se apaga si deja de moverse
     requestAnimationFrame(cuadro);
     if (!W || !H) return redimensionar(); // la ventana todavía no tiene tamaño
+
+    const maxScroll = document.documentElement.scrollHeight - H;
+    const progreso = maxScroll > 0 ? limitar(window.scrollY / maxScroll, 0, 1) : 0;
+    const piso = hero.getBoundingClientRect().bottom;
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
-    ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(capaEstrellas, 0, 0, W, H);
+    dibujarCielo(progreso);
 
     ctx.globalCompositeOperation = "lighter";
-    dibujarTitilantes();
+    dibujarTitilantes(progreso);
     ctx.globalCompositeOperation = "source-over";
     dibujarGirasol(dt);
+    dibujarSuelo(piso);
+    dibujarPradera(dt, piso);
     dibujarPetalos(dt);
     ctx.globalCompositeOperation = "lighter";
-    dibujarFugaces(dt);
+    dibujarFugaces(dt, progreso);
+    dibujarFuegos(dt);
     dibujarCorazon();
     dibujarLuciernagas(dt);
     dibujarFloraciones(dt);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
   }
 
   window.addEventListener("resize", redimensionar);
-  window.addEventListener("pointermove", (e) => {
-    puntero.x = e.clientX;
-    puntero.y = e.clientY;
-    puntero.hasta = reloj + 1.5;
-  });
+  window.addEventListener(
+    "pointermove",
+    (e) => {
+      const ahora = performance.now();
+      const dt = Math.max(8, ahora - puntero.t) / 1000;
+      puntero.vx = (e.clientX - puntero.x) / dt;
+      puntero.x = e.clientX;
+      puntero.y = e.clientY;
+      puntero.t = ahora;
+      puntero.hasta = reloj + 1.5;
+    },
+    { passive: true }
+  );
   window.addEventListener("pointerdown", (e) => {
-    if (!e.target.closest("button")) florecer(e.clientX, e.clientY);
+    if (e.target.closest("button, a, input, label, .interactivo")) return;
+    florecer(e.clientX, e.clientY);
   });
 
   redimensionar();
@@ -635,6 +874,7 @@ var Fondo = (function () {
     iniciarEscena() {
       if (enEscena) return;
       enEscena = true;
+      inicioEscena = reloj;
       girasol.explosion = 0;
       const medidas = medidasGirasol();
       const visibles = Math.max(1, Math.floor(girasol.semillas * (1 - Math.pow(1 - girasol.crecimiento, 3))));
@@ -646,20 +886,26 @@ var Fondo = (function () {
         l.vy = Math.sin(s.ang) * v;
         luciernagas.push(l);
       }
-      ajustarPetalos();
     },
-    formarCorazon() {
+    // Devuelve un id para soltar solo ese corazón (y no uno que se formó después)
+    formarCorazon(ancla) {
       corazon.activo = true;
+      corazon.ancla = ancla || anclaHero;
       calcularCorazon();
+      return ++idCorazon;
     },
     soltarCorazon,
-    geometriaCorazon() {
-      return {
-        x: corazon.cx,
-        y: corazon.cy - 1.5 * corazon.s,
-        ancho: 32 * corazon.s,
-        abajo: corazon.cy + 15 * corazon.s,
-      };
+    anclaHero,
+    anclaPantalla,
+    anclaElemento,
+    florecer,
+    // Lanza un cohete que explota en (x, y) de la pantalla
+    fuegos(x = W * (0.2 + Math.random() * 0.6), y = H * (0.15 + Math.random() * 0.3)) {
+      lanzarCohete(x, y);
     },
+    lluvia(segundos = 6) {
+      lluviaHasta = reloj + segundos;
+    },
+    crearCabeza,
   };
 })();
